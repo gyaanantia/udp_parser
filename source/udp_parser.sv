@@ -39,7 +39,7 @@ module udp_parser #(
     output logic [DATA_WIDTH-1:0]   dout
 );
 
-typedef enum logic [4:0] { wait_for_sof, eth_dst_addr_state, eth_src_addr_state, eth_protocol_state, ip_version_header_state, ip_type_state, ip_length_state, ip_id_state, ip_flag_state, ip_time_state, ip_protocol_state, ip_checksum_state, ip_src_addr_state, ip_dst_addr_state, udp_dst_port_state, udp_src_port_state } state_t;
+typedef enum logic [4:0] { wait_for_sof, eth_dst_addr_state, eth_src_addr_state, eth_protocol_state, ip_version_header_state, ip_type_state, ip_length_state, ip_id_state, ip_flag_state, ip_time_state, ip_protocol_state, ip_checksum_state, ip_src_addr_state, ip_dst_addr_state, udp_dst_port_state, udp_src_port_state, udp_length_state, udp_checksum_state } state_t;
 state_t state, state_c;
 
 integer num_bytes, num_bytes_c;
@@ -59,6 +59,8 @@ logic [(IP_SRC_ADDR_BYTES*8)-1:0] ip_src_addr, ip_src_addr_c;
 logic [(IP_DST_ADDR_BYTES*8)-1:0] ip_dst_addr, ip_dst_addr_c;
 logic [(UDP_DST_PORT_BYTES*8)-1:0] udp_dst_port, udp_dst_port_c;
 logic [(UDP_SRC_PORT_BYTES*8)-1:0] udp_src_port, udp_src_port_c;
+logic [(UDP_LENGTH_BYTES*8)-1:0] udp_length, udp_length_c;
+logic [(UDP_CHECKSUM_BYTES*8)-1:0] udp_checksum, udp_checksum_c;
 
 always_ff @( posedge clock or posedge reset ) begin
     if (reset == 1'b1) begin
@@ -80,6 +82,8 @@ always_ff @( posedge clock or posedge reset ) begin
         ip_dst_addr <= '0;
         udp_dst_port <= '0;
         udp_src_port <= '0;
+        udp_length <= '0;
+        udp_checksum <= '0;
     end else begin
         state <= state_c;
         num_bytes <= num_bytes_c;
@@ -99,6 +103,8 @@ always_ff @( posedge clock or posedge reset ) begin
         ip_dst_addr <= ip_dst_addr_c;
         udp_dst_port <= udp_dst_port_c;
         udp_src_port <= udp_src_port_c;
+        udp_length <= udp_length_c;
+        udp_checksum <= udp_checksum_c;
     end
 end
 
@@ -285,7 +291,44 @@ always_comb begin
 
         udp_src_port_state: begin
             if (empty == 1'b0) begin
+                udp_src_port_c = ($unsigned(udp_src_port) << 8) | (UDP_SRC_PORT_BYTES*8)'($unsigned(din));
+                num_bytes_c = (num_bytes + 1) % UDP_SRC_PORT_BYTES;
+                rd_en = 1'b1;
+                if (num_bytes == UDP_SRC_PORT_BYTES-1) begin
+                    state_c = udp_length_state;
+                end else begin
+                    state_c = udp_src_port_state;
+                end
+            end
+        end
 
+        udp_length_state: begin
+            if (empty == 1'b0) begin
+                udp_length_c = ($unsigned(udp_length) << 8) | (UDP_LENGTH_BYTES*8)'($unsigned(din));
+                num_bytes_c = (num_bytes + 1) % UDP_LENGTH_BYTES;
+                rd_en = 1'b1;
+                if (num_bytes == UDP_LENGTH_BYTES-1) begin
+                    state_c = udp_checksum_state;
+                end else begin
+                    state_c = udp_length_state;
+                end
+            end
+        end
+
+        udp_checksum_state: begin
+            if (empty == 1'b0) begin
+                udp_checksum_c = ($unsigned(udp_checksum) << 8) | (UDP_CHECKSUM_BYTES*8)'($unsigned(din));
+                num_bytes_c = (num_bytes + 1) % UDP_CHECKSUM_BYTES;
+                rd_en = 1'b1;
+                if (num_bytes == UDP_CHECKSUM_BYTES-1) begin
+                    state_c = read_udp_data_state;
+                end else begin
+                    state_c = udp_checksum_state;
+                end
+            end
+        end
+
+        
         default: 
     endcase
 end
