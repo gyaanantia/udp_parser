@@ -53,8 +53,8 @@ fifo #(
     .empty(fsf_empty)
 );
 
-assign empty = dif_empty || fsf_empty;
-assign full = dif_full || fsf_full;
+assign empty = dif_empty | fsf_empty;
+assign full = dif_full | fsf_full;
 
 endmodule
 
