@@ -5,7 +5,7 @@ module udp (
     input  logic        in_wr_en,
     input  logic        in_wr_sof,
     input  logic        in_wr_eof,
-    output logic        in_full
+    output logic        in_full,
 
     input  logic        out_rd_en,
     output logic        out_rd_sof,

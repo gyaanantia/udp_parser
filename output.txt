@@ -1,0 +1,3 @@
+ADVANCED DIGITAL SYSTEM DESIGN WITH FPGAS
+
+CATALOG DESCRIPTION: This course covers the systematic design of advanced digital systems using field-programmable gate arrays (FPGAs). The emphasis is on top-down design starting with a software application, and translating it to high-level models using a hardware description language (such as VHDL or Verilog). The course will focus o

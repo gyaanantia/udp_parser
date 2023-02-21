@@ -1,7 +1,7 @@
 module fifo_ctrl #(
     parameter DATA_FIFO_DATA_WIDTH = 8,
     parameter FRAME_SYNC_FIFO_DATA_WIDTH = 2,
-    parameter FIFO_BUFFER_SIZE = 1024,
+    parameter FIFO_BUFFER_SIZE = 1024
 )
 (
     input  logic                            reset,

@@ -1,41 +1,41 @@
 module udp_parser (
-    input  logic                    clock,
-    input  logic                    reset,
-    input  logic                    in_sof,
-    input  logic                    in_eof,
-    input  logic [DATA_WIDTH-1:0]   din,
-    input  logic                    in_empty,
-    output logic                    in_rd_en,
-    output logic [DATA_WIDTH-1:0]   dout,
-    output logic                    out_sof,
-    output logic                    out_eof,
-    output logic                    out_wr_en,
-    output logic                    out_empty,
-    input  logic                    out_full
+    input  logic        clock,
+    input  logic        reset,
+    input  logic        in_sof,
+    input  logic        in_eof,
+    input  logic [7:0]  din,
+    input  logic        in_empty,
+    output logic        in_rd_en,
+    output logic [7:0]  dout,
+    output logic        out_sof,
+    output logic        out_eof,
+    output logic        out_wr_en,
+    output logic        out_empty,
+    input  logic        out_full
 );
 
-    localparam ETH_DST_ADDR_BYTES     = 6,
-    localparam ETH_SRC_ADDR_BYTES     = 6,
-    localparam ETH_PROTOCOL_BYTES     = 2,
-    localparam IP_VERSION_BYTES       = 1,
-    localparam IP_HEADER_BYTES        = 1,
-    localparam IP_TYPE_BYTES          = 1,
-    localparam IP_LENGTH_BYTES        = 2,
-    localparam IP_ID_BYTES            = 2,
-    localparam IP_FLAG_BYTES          = 2,
-    localparam IP_TIME_BYTES          = 1,
-    localparam IP_PROTOCOL_BYTES      = 1,
-    localparam IP_CHECKSUM_BYTES      = 2,
-    localparam IP_SRC_ADDR_BYTES      = 4,
-    localparam IP_DST_ADDR_BYTES      = 4,
-    localparam UDP_DST_PORT_BYTES     = 2,
-    localparam UDP_SRC_PORT_BYTES     = 2,
-    localparam UDP_LENGTH_BYTES       = 2,
-    localparam UDP_CHECKSUM_BYTES     = 2,
-    localparam IP_PROTOCOL_DEF        = 16'h0800,
-    localparam IP_VERSION_DEF         = 4'h4,
-    localparam UDP_PROTOCOL_DEF       = 8'h11,
-    localparam DATA_WIDTH             = 8
+localparam ETH_DST_ADDR_BYTES     = 6;
+localparam ETH_SRC_ADDR_BYTES     = 6;
+localparam ETH_PROTOCOL_BYTES     = 2;
+localparam IP_VERSION_BYTES       = 1;
+localparam IP_HEADER_BYTES        = 1;
+localparam IP_TYPE_BYTES          = 1;
+localparam IP_LENGTH_BYTES        = 2;
+localparam IP_ID_BYTES            = 2;
+localparam IP_FLAG_BYTES          = 2;
+localparam IP_TIME_BYTES          = 1;
+localparam IP_PROTOCOL_BYTES      = 1;
+localparam IP_CHECKSUM_BYTES      = 2;
+localparam IP_SRC_ADDR_BYTES      = 4;
+localparam IP_DST_ADDR_BYTES      = 4;
+localparam UDP_DST_PORT_BYTES     = 2;
+localparam UDP_SRC_PORT_BYTES     = 2;
+localparam UDP_LENGTH_BYTES       = 2;
+localparam UDP_CHECKSUM_BYTES     = 2;
+localparam IP_PROTOCOL_DEF        = 16'h0800;
+localparam IP_VERSION_DEF         = 4'h4;
+localparam UDP_PROTOCOL_DEF       = 8'h11;
+localparam DATA_WIDTH             = 8;
 
 typedef enum logic [4:0] { init, wait_for_sof, eth_dst_addr_state, eth_src_addr_state, eth_protocol_state, ip_version_header_state, ip_type_state, ip_length_state, ip_id_state, ip_flag_state, ip_time_state, ip_protocol_state, ip_checksum_state, ip_src_addr_state, ip_dst_addr_state, udp_dst_port_state, udp_src_port_state, udp_length_state, udp_checksum_state, read_udp_data_state, calculate_checksum_state, validate_checksum_state, output_state, done } state_t;
 state_t state, state_c;
@@ -44,7 +44,7 @@ integer num_bytes, num_bytes_c;
 integer udp_bytes, udp_bytes_c;
 logic [(ETH_DST_ADDR_BYTES*8)-1:0] eth_dst_addr, eth_dst_addr_c;
 logic [(ETH_SRC_ADDR_BYTES*8)-1:0] eth_src_addr, eth_src_addr_c;
-logic [(ETH_PROTOCOL_BYTES*8)-1:0] eth_procotol, eth_protocol_c;
+logic [(ETH_PROTOCOL_BYTES*8)-1:0] eth_protocol, eth_protocol_c;
 logic [(IP_VERSION_BYTES*4)-1:0] ip_version, ip_version_c;
 logic [(IP_HEADER_BYTES*4)-1:0] ip_header, ip_header_c;
 logic [(IP_TYPE_BYTES*8)-1:0] ip_type, ip_type_c;
@@ -73,10 +73,7 @@ logic fifo_reset;
 logic buffer_out_sof;
 logic buffer_out_eof;
 
-fifo_ctrl #(
-    .FIFO_DATA_WIDTH(8),
-    .FIFO_BUFFER_SIZE(2048)
-) buffer_fifo (
+fifo_ctrl buffer_fifo (
     .reset(fifo_reset),
     .wr_clk(clock),
     .wr_en(buffer_wr_en),
@@ -99,11 +96,11 @@ assign out_eof = buffer_out_eof;
 
 always_ff @( posedge clock or posedge reset ) begin
     if (reset == 1'b1) begin
-        state <= wait_for_sof;
+        state <= init;
         num_bytes <= 0;
         eth_dst_addr <= '0;
         eth_src_addr <= '0;
-        eth_procotol <= '0;
+        eth_protocol <= '0;
         ip_version <= '0;
         ip_header <= '0;
         ip_type <= '0;
@@ -121,16 +118,12 @@ always_ff @( posedge clock or posedge reset ) begin
         udp_checksum <= '0;
         sum <= '0;
         x <= '0;
-        in_rd_en = 1'b0;
-        buffer_out_sof = 1'b0;
-        buffer_out_eof = 1'b0;
-        buffer_empty = 1'b0;
     end else begin
         state <= state_c;
         num_bytes <= num_bytes_c;
         eth_dst_addr <= eth_dst_addr_c;
         eth_src_addr <= eth_src_addr_c;
-        eth_procotol <= eth_procotol_c;
+        eth_protocol <= eth_protocol_c;
         ip_version <= ip_version_c;
         ip_header <= ip_header_c;
         ip_type <= ip_type_c;
@@ -153,7 +146,6 @@ end
 
 always_comb begin
     in_rd_en = 1'b0;
-    dout = 8'b0;
     fifo_clear = 1'b0;
     out_wr_en = 1'b0;
 
@@ -206,20 +198,20 @@ always_comb begin
 
         eth_protocol_state: begin
             if (in_empty== 1'b0) begin
-                eth_procotol_c = ($unsigned(eth_procotol) << 8) | (ETH_PROTOCOL_BYTES*8)'($unsigned(din));
+                eth_protocol_c = ($unsigned(eth_protocol) << 8) | (ETH_PROTOCOL_BYTES*8)'($unsigned(din));
                 num_bytes_c = (num_bytes + 1) % ETH_PROTOCOL_BYTES;
                 in_rd_en = 1'b1;
                 if (num_bytes == ETH_PROTOCOL_BYTES-1) begin
                     // check protocol here
-                    if (eth_procotol_c != IP_PROTOCOL_DEF) begin
+                    if (eth_protocol_c != IP_PROTOCOL_DEF) begin
                         fifo_clear = 1'b1;
                         state_c = init;
                     end else begin
-                        state_c = ip_version_state;
+                        state_c = ip_version_header_state;
                     end 
                 end
             end else begin
-                state_c = eth_procotol_state;
+                state_c = eth_protocol_state;
             end
         end
 
@@ -256,7 +248,7 @@ always_comb begin
                 in_rd_en = 1'b1;
                 if (num_bytes == IP_LENGTH_BYTES-1) begin
                     // add to checksum_c
-                    sum_c = sum + 32'($unsigned(udp_length_c)) - 32'($unsigned(h20));
+                    sum_c = sum + 32'($unsigned(ip_length_c)) - 32'($unsigned(32'h20));
                     state_c = ip_id_state;
                 end else begin
                     state_c = ip_length_state;
@@ -342,6 +334,7 @@ always_comb begin
                 in_rd_en = 1'b1;
 
                 if (num_bytes % 2 == 1) begin
+                    // TODO: explicitly frontload the sum with zeros every time
                     sum_c = sum + 32'($unsigned(ip_src_addr_c));
                 end
 
@@ -486,7 +479,6 @@ always_comb begin
             state_c = init;
         end
 
-        default: 
     endcase
 end
 endmodule
