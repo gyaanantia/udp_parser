@@ -107,7 +107,7 @@ initial begin : pcap_read_process
         // read pcap packet header and get packet length
         packet_header = {(PCAP_PACKET_HEADER_SIZE){8'h00}};
         i += $fread(packet_header, in_file, i, PCAP_PACKET_HEADER_SIZE);
-        packet_size = {<<6{packet_header[8:11]}};
+        packet_size = {<<8{packet_header[8:11]}};
         $display("Packet size: %d", packet_size);
 
         // iterate through packet length
@@ -154,6 +154,7 @@ initial begin : txt_write_process
     i = $fseek(cmp_file, 0, 2);
     n_bytes = $ftell(cmp_file);
     i = $fseek(cmp_file, 0, 0);
+    $display("n_bytes = %d\n", n_bytes);
 
     while (i < n_bytes) begin
         @(negedge clock);

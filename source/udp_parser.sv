@@ -98,6 +98,7 @@ always_ff @( posedge clock or posedge reset ) begin
     if (reset == 1'b1) begin
         state <= init;
         num_bytes <= 0;
+        udp_bytes <= 0;
         eth_dst_addr <= '0;
         eth_src_addr <= '0;
         eth_protocol <= '0;
@@ -121,6 +122,7 @@ always_ff @( posedge clock or posedge reset ) begin
     end else begin
         state <= state_c;
         num_bytes <= num_bytes_c;
+        udp_bytes <= udp_bytes_c;
         eth_dst_addr <= eth_dst_addr_c;
         eth_src_addr <= eth_src_addr_c;
         eth_protocol <= eth_protocol_c;
@@ -148,6 +150,10 @@ always_comb begin
     in_rd_en = 1'b0;
     fifo_clear = 1'b0;
     out_wr_en = 1'b0;
+    buffer_rd_en = 1'b0;
+    buffer_wr_en = 1'b0;
+    buffer_din = '0;
+    
 
     case (state)
         init: begin
@@ -248,7 +254,7 @@ always_comb begin
                 in_rd_en = 1'b1;
                 if (num_bytes == IP_LENGTH_BYTES-1) begin
                     // add to checksum_c
-                    sum_c = sum + 32'($unsigned(ip_length_c)) - 32'($unsigned(32'h20));
+                    sum_c = sum + 32'({16'h0000, $unsigned(ip_length_c)}) - 32'($unsigned(32'd20));
                     state_c = ip_id_state;
                 end else begin
                     state_c = ip_length_state;
@@ -308,7 +314,7 @@ always_comb begin
                     fifo_clear = 1'b1;
                     state_c = init;
                 end else begin
-                    sum_c = sum + 32'($unsigned(ip_protocol_c));
+                    sum_c = sum + 32'({24'h000000, $unsigned(ip_protocol_c)});
                     state_c = ip_checksum_state;
                 end
             end
@@ -334,8 +340,7 @@ always_comb begin
                 in_rd_en = 1'b1;
 
                 if (num_bytes % 2 == 1) begin
-                    // TODO: explicitly frontload the sum with zeros every time
-                    sum_c = sum + 32'($unsigned(ip_src_addr_c));
+                    sum_c = sum + 32'({16'h0000, $unsigned(ip_src_addr_c[15:0])});
                 end
 
                 if (num_bytes == IP_SRC_ADDR_BYTES-1) begin
@@ -353,7 +358,7 @@ always_comb begin
                 in_rd_en = 1'b1;
 
                 if (num_bytes % 2 == 1) begin
-                    sum_c = sum + 32'($unsigned(ip_dst_addr_c));
+                    sum_c = sum + 32'({16'h0000, $unsigned(ip_dst_addr_c[15:0])});
                 end
                 
                 if (num_bytes == IP_DST_ADDR_BYTES-1) begin
@@ -370,7 +375,7 @@ always_comb begin
                 num_bytes_c = (num_bytes + 1) % UDP_DST_PORT_BYTES;
                 in_rd_en = 1'b1;
                 if (num_bytes == UDP_DST_PORT_BYTES-1) begin
-                    sum_c = sum + 32'($unsigned(udp_dst_port_c));
+                    sum_c = sum + 32'({16'h0000, $unsigned(udp_dst_port_c)});
                     state_c = udp_src_port_state;
                 end else begin
                     state_c = udp_dst_port_state;
@@ -384,7 +389,7 @@ always_comb begin
                 num_bytes_c = (num_bytes + 1) % UDP_SRC_PORT_BYTES;
                 in_rd_en = 1'b1;
                 if (num_bytes == UDP_SRC_PORT_BYTES-1) begin
-                    sum_c = sum + 32'($unsigned(udp_src_port_c));
+                    sum_c = sum + 32'({16'h0000, $unsigned(udp_src_port_c)});
                     state_c = udp_length_state;
                 end else begin
                     state_c = udp_src_port_state;
@@ -398,7 +403,7 @@ always_comb begin
                 num_bytes_c = (num_bytes + 1) % UDP_LENGTH_BYTES;
                 in_rd_en = 1'b1;
                 if (num_bytes == UDP_LENGTH_BYTES-1) begin
-                    sum_c = sum + 32'($unsigned(udp_length_c));
+                    sum_c = sum + 32'({16'h0000, $unsigned(udp_length_c)});
                     state_c = udp_checksum_state;
                 end else begin
                     state_c = udp_length_state;
@@ -432,13 +437,12 @@ always_comb begin
                 if (num_bytes == 0) begin
                     x_c = 8'($unsigned(din));
                 end else begin
-                    // need to set the end of frame in the internal fifo
-                    sum_c = sum + ((x << 8) | 32'($unsigned(din)));
+                    sum_c = sum + 32'({16'h0000, x, $unsigned(din)});
                 end
 
                 if (in_eof == 1'b1 || udp_bytes == udp_length - (UDP_CHECKSUM_BYTES + UDP_LENGTH_BYTES + UDP_DST_PORT_BYTES + UDP_SRC_PORT_BYTES) - 1) begin
                     if (udp_length[0] == 1'b1) begin
-                        sum_c = sum + 32'($unsigned(din));
+                        sum_c = sum + 32'({16'h0000, $unsigned(din), 8'h00});
                     end
                     state_c = calculate_checksum_state;
                 end
