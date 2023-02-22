@@ -29,6 +29,8 @@ class my_uvm_driver extends uvm_driver#(my_uvm_transaction);
 
         vif.in_din = 8'b0;
         vif.in_wr_en = 1'b0;
+        vif.in_wr_sof = 1'b0;
+        vif.in_wr_eof = 1'b0;
 
         forever begin
             @(negedge vif.clock) 
@@ -43,6 +45,8 @@ class my_uvm_driver extends uvm_driver#(my_uvm_transaction);
                 end else begin
                     vif.in_wr_en = 1'b0;
                     vif.in_din = 8'b0;
+                    vif.in_wr_sof = 1'b0;
+                    vif.in_wr_eof = 1'b0;
                 end
             end
         end

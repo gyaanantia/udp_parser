@@ -92,7 +92,7 @@ class my_uvm_monitor_compare extends uvm_monitor;
     endfunction: build_phase
 
     virtual task run_phase(uvm_phase phase);
-        int n_bytes=0, i=0;
+        int n_bytes=0, i=0, total_bytes=0;
         logic [7:0] dout;
         my_uvm_transaction tx_cmp;
 
@@ -108,8 +108,12 @@ class my_uvm_monitor_compare extends uvm_monitor;
 
         tx_cmp = my_uvm_transaction::type_id::create(.name("tx_cmp"), .contxt(get_full_name()));
 
+        i = $fseek(cmp_file, 0, 2);
+        total_bytes = $ftell(cmp_file);
+        i = $fseek(cmp_file, 0, 0);
+
         // syncronize file read with fifo data
-        while ( !$feof(cmp_file) ) begin
+        while ( !$feof(cmp_file) && i < total_bytes) begin
             @(negedge vif.clock)
             begin
                 if ( vif.out_empty == 1'b0 ) begin

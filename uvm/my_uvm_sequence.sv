@@ -29,8 +29,9 @@ class my_uvm_sequence extends uvm_sequence#(my_uvm_transaction);
         // int in_file, n_bytes=0, i=0;
 
         int i, j;
+        int n_bytes;
         int packet_size;
-        int in_file;
+        int in_file, cmp_file;
         logic [0:PCAP_FILE_HEADER_SIZE-1] [7:0] file_header;
         logic [0:PCAP_PACKET_HEADER_SIZE-1] [7:0] packet_header;
         logic [7:0] din;
@@ -38,10 +39,16 @@ class my_uvm_sequence extends uvm_sequence#(my_uvm_transaction);
         `uvm_info("SEQ_RUN", $sformatf("Loading file %s...", PCAP_IN_NAME), UVM_LOW);
 
         in_file = $fopen(PCAP_IN_NAME, "rb");
+        cmp_file = $fopen(TXT_CMP_NAME, "rb");
 
         if ( !in_file ) begin
             `uvm_fatal("SEQ_RUN", $sformatf("Failed to open file %s...", PCAP_IN_NAME));
         end
+
+        i = $fseek(cmp_file, 0, 2);
+        n_bytes = $ftell(cmp_file);
+        i = $fseek(cmp_file, 0, 0);
+        $fclose(cmp_file);
 
         // read PCAP header
         i = $fread(file_header, in_file, 0, PCAP_FILE_HEADER_SIZE);
@@ -49,7 +56,8 @@ class my_uvm_sequence extends uvm_sequence#(my_uvm_transaction);
             `uvm_fatal("SEQ_RUN", $sformatf("Failed read header data from %s...", PCAP_IN_NAME));
         end
 
-        while ( !$feof(in_file) ) begin
+
+        while ( !$feof(in_file) && i < n_bytes ) begin
             // read packet header
             packet_header = {(PCAP_PACKET_HEADER_SIZE){8'h00}};
             i += $fread(packet_header, in_file, i, PCAP_PACKET_HEADER_SIZE);
